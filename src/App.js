@@ -27,7 +27,7 @@ class App extends Component {
       user: null,
       error: null,
       anchorEl: null,
-      open: false,
+      open: false
     };
   }
 
@@ -107,18 +107,18 @@ class App extends Component {
       .catch(error => {});
   };
 
-  handleMenu = (event) => {
-    this.setState({ anchorEl: event.currentTarget });};
+  handleMenu = () => {
+    this.setState({ open: true });
+  };
 
   handleClose = () => {
-    this.setState({ anchorEl: null });
+    this.setState({ open: false });
   };
 
   render() {
     const { classes } = this.props;
-    const { anchorEl, user } = this.state;
+    const { anchorEl, user, open } = this.state;
     const isSignedIn = Boolean(user);
-    const open = Boolean(anchorEl);
     console.log(isSignedIn, user);
     const theme = createMuiTheme({
       typography: {
@@ -161,7 +161,7 @@ class App extends Component {
                     </Typography>
                     <Avatar
                       style={{ display: "inline-block" }}
-                      onClick={this.handleMenu}
+                      onClick={this.handleMenu.bind(this)}
                       alt="Remy Sharp"
                       src={user.photoURL}
                       className={classes.avatar}
