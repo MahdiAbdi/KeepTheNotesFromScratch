@@ -5,12 +5,13 @@
   "homepage": "https://mahdiabdi.github.io/keepthenotesfromscratch",
   "dependencies": {
     "@material-ui/core": "^3.8.3",
+    "@material-ui/icons": "latest",
     "firebase": "^5.7.2",
     "gh-pages": "^2.0.1",
+    "next": "^7.0.2",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "react-scripts": "2.1.3",
-    "@material-ui/icons": "latest"
+    "react-scripts": "2.1.3"
   },
   "scripts": {
     "start": "react-scripts start",
