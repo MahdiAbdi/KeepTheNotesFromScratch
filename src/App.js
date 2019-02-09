@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import IconButton from "@material-ui/core/IconButton";
@@ -16,55 +16,56 @@ import createMuiTheme from "@material-ui/core/styles/createMuiTheme";
 import "./fonts/fira_code.css";
 import { auth, db, provider } from "./firebase";
 import Switch from "@material-ui/core/Switch/Switch";
-import {useLocalStorage} from "./hooks/useLocalStorage";
+import { useLocalStorage } from "./hooks/useLocalStorage";
 
 function App(props) {
-  // const isDarkFromLocalStorage = localStorage.getItem("isDark");
-  // console.log("isDarkFromLocalStorage : ", isDarkFromLocalStorage);
   const [docId, setDocId] = useState(0);
   const [note, setNote] = useState("");
   const [user, setUser] = useState(null);
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [isDark, setDark] = useLocalStorage(false);
+  const [caret, setCaret] = useState(0);
+  const input = useRef(null);
 
-  // useEffect(
-  //   () => {
-  //     console.log("EFEEEEEEEEEEEECT", isDark);
-  //     localStorage.setItem("isDark", isDark.toString());
-  //   },
-  //   [isDark]
-  // );
-
-  useEffect(
-    () => {
-      auth.onAuthStateChanged(user => {
-        if (user) {
-          setUser(user);
-          db.collection("notes")
-            .where("author", "==", user.email)
-            .onSnapshot(snapshot => {
-              let changes = snapshot.docChanges();
-              changes.forEach(change => {
-                if (change.type === "added") {
-                  setDocId(change.doc.id);
-                } else if (change.type === "removed") {
-                  setNote("");
-                }
-                setNote(change.doc.data().content);
-              });
+  useEffect(() => {
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        setUser(user);
+        db.collection("notes")
+          .where("author", "==", user.email)
+          .onSnapshot(snapshot => {
+            let changes = snapshot.docChanges();
+            changes.forEach(change => {
+              if (change.type === "added") {
+                setDocId(change.doc.id);
+              } else if (change.type === "removed") {
+                setNote("");
+              }
+              setNote(change.doc.data().content);
             });
-        } else {
-          setNote("");
-          setDocId(null);
-          setUser(null);
-        }
-      });
-    },
-    [user]
-  );
+          });
+      } else {
+        setNote("");
+        setDocId(null);
+        setUser(null);
+      }
+    });
+  }, [user]);
+
+  useEffect(() => {
+    console.log(caret);
+    if (input.current !== null) {
+      console.log(note, caret);
+
+      // input.current.setSelectionRange(caret.start, caret.end);
+      input.current.selectionStart = caret.start;
+      input.current.selectionEnd = caret.end;
+    }
+  }, [{ note, caret }]);
 
   const autoSave = e => {
+    setCaret({ start: e.target.selectionStart, end: e.target.selectionEnd, e });
     if (docId) {
       db.collection("notes")
         .doc(docId)
@@ -196,6 +197,7 @@ function App(props) {
         </AppBar>
         {isSignedIn ? (
           <TextField
+            inputRef={input}
             id="outlined-multiline-flexible"
             multiline
             rows={40}
