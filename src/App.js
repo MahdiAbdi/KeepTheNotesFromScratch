@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import IconButton from "@material-ui/core/IconButton";
@@ -14,21 +14,33 @@ import TextField from "@material-ui/core/TextField";
 import MuiThemeProvider from "@material-ui/core/styles/MuiThemeProvider";
 import createMuiTheme from "@material-ui/core/styles/createMuiTheme";
 import "./fonts/fira_code.css";
-import { auth, provider, db } from "./firebase";
+import { auth, db, provider } from "./firebase";
+import Switch from "@material-ui/core/Switch/Switch";
+import {useLocalStorage} from "./hooks/useLocalStorage";
 
 function App(props) {
+  // const isDarkFromLocalStorage = localStorage.getItem("isDark");
+  // console.log("isDarkFromLocalStorage : ", isDarkFromLocalStorage);
   const [docId, setDocId] = useState(0);
   const [note, setNote] = useState("");
   const [user, setUser] = useState(null);
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [isDark, setDark] = useLocalStorage(false);
+
+  // useEffect(
+  //   () => {
+  //     console.log("EFEEEEEEEEEEEECT", isDark);
+  //     localStorage.setItem("isDark", isDark.toString());
+  //   },
+  //   [isDark]
+  // );
 
   useEffect(
     () => {
       auth.onAuthStateChanged(user => {
         if (user) {
           setUser(user);
-          db.settings({ timestampsInSnapshots: true });
           db.collection("notes")
             .where("author", "==", user.email)
             .onSnapshot(snapshot => {
@@ -77,6 +89,9 @@ function App(props) {
   const { classes } = props;
   const isSignedIn = Boolean(user);
   const theme = createMuiTheme({
+    palette: {
+      type: isDark ? "dark" : "light"
+    },
     typography: {
       fontFamily: "Fira Code",
       useNextVariants: true,
@@ -86,23 +101,28 @@ function App(props) {
   return (
     <MuiThemeProvider theme={theme}>
       <div className={classes.root}>
-        <AppBar position="static">
+        <AppBar position="static" color="default">
           <Toolbar>
             <IconButton
               className={classes.menuButton}
-              color="inherit"
+              color="primary"
               aria-label="Menu"
             >
               <MenuIcon />
             </IconButton>
             <Typography
               variant="h6"
-              color="inherit"
+              color="textPrimary"
               gutterBottom
               className={classes.grow}
             >
               ToNote
             </Typography>
+            <Switch
+              checked={isDark}
+              onChange={() => setDark(!isDark)}
+              value="isDark"
+            />
             <div>
               {isSignedIn ? (
                 <div
@@ -119,7 +139,7 @@ function App(props) {
                   }}
                 >
                   <Typography
-                    color="inherit"
+                    color="textPrimary"
                     style={{ display: "inline-block" }}
                     variant="body2"
                     className={classes.grow}
@@ -136,7 +156,7 @@ function App(props) {
               ) : (
                 <div>
                   <Typography
-                    color="inherit"
+                    color="primary"
                     style={{ display: "inline-block" }}
                     variant="body2"
                     className={classes.grow}
@@ -147,7 +167,7 @@ function App(props) {
                     aria-owns={open ? "menu-appbar" : undefined}
                     aria-haspopup="true"
                     onClick={login}
-                    color="inherit"
+                    color="primary"
                   >
                     <AccountCircle />
                   </IconButton>
@@ -184,6 +204,7 @@ function App(props) {
             className={classes.textField}
             margin="normal"
             variant="outlined"
+            style={{ backgroundColor: isDark ? "#1a2837" : "#FFF" }}
           />
         ) : null}
       </div>
@@ -204,9 +225,9 @@ const styles = theme =>
       marginRight: 20
     },
     textField: {
+      marginTop: 0,
       width: "100%",
-      height: "100%",
-      fontFamily: "Comic Sans MS !important"
+      height: "100%"
     }
   });
 
