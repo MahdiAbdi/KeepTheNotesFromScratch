@@ -1,6 +1,4 @@
-import React, { Component } from "react";
-import firebase from "firebase";
-import "firebase/firestore";
+import React, { useEffect, useState } from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import IconButton from "@material-ui/core/IconButton";
@@ -16,217 +14,202 @@ import TextField from "@material-ui/core/TextField";
 import MuiThemeProvider from "@material-ui/core/styles/MuiThemeProvider";
 import createMuiTheme from "@material-ui/core/styles/createMuiTheme";
 import "./fonts/fira_code.css";
+import { auth, db, provider } from "./firebase";
+import Switch from "@material-ui/core/Switch/Switch";
+import {useLocalStorage} from "./hooks/useLocalStorage";
 
-class App extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      docId: null,
-      note: "",
-      token: null,
-      user: null,
-      error: null,
-      anchorEl: null,
-      open: false
-    };
-  }
+function App(props) {
+  // const isDarkFromLocalStorage = localStorage.getItem("isDark");
+  // console.log("isDarkFromLocalStorage : ", isDarkFromLocalStorage);
+  const [docId, setDocId] = useState(0);
+  const [note, setNote] = useState("");
+  const [user, setUser] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [isDark, setDark] = useLocalStorage(false);
 
-  provider = null;
+  // useEffect(
+  //   () => {
+  //     console.log("EFEEEEEEEEEEEECT", isDark);
+  //     localStorage.setItem("isDark", isDark.toString());
+  //   },
+  //   [isDark]
+  // );
 
-  componentDidMount() {
-    const config = {
-      apiKey: "AIzaSyB3GYcRcn40zuiUOL9oEiXC2pE7RWBPX8U",
-      authDomain: "keepthenotes-bf133.firebaseapp.com",
-      databaseURL: "https://keepthenotes-bf133.firebaseio.com",
-      projectId: "keepthenotes-bf133",
-      storageBucket: "keepthenotes-bf133.appspot.com",
-      messagingSenderId: "682012368542"
-    };
-
-    firebase.initializeApp(config);
-
-    this.provider = new firebase.auth.GoogleAuthProvider();
-    console.log(this.provider);
-    const auth = firebase.auth();
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        this.setState({ user });
-        const db = firebase.firestore();
-        db.settings({ timestampsInSnapshots: true });
-        db.collection("notes")
-          .where("author", "==", user.email)
-          .onSnapshot(snapshot => {
-            let changes = snapshot.docChanges();
-            changes.forEach(change => {
-              if (change.type === "added") {
-                this.setState({ docId: change.doc.id });
-              } else if (change.type === "removed") {
-                this.setState({ note: "" });
-              }
-              this.setState({ note: change.doc.data().content });
+  useEffect(
+    () => {
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          setUser(user);
+          db.collection("notes")
+            .where("author", "==", user.email)
+            .onSnapshot(snapshot => {
+              let changes = snapshot.docChanges();
+              changes.forEach(change => {
+                if (change.type === "added") {
+                  setDocId(change.doc.id);
+                } else if (change.type === "removed") {
+                  setNote("");
+                }
+                setNote(change.doc.data().content);
+              });
             });
-          });
-      } else {
-        this.setState({
-          docId: null,
-          note: "",
-          token: null,
-          user: null,
-          error: null
-        });
-      }
-    });
-  }
+        } else {
+          setNote("");
+          setDocId(null);
+          setUser(null);
+        }
+      });
+    },
+    [user]
+  );
 
-  autoSave(e) {
-    const db = firebase.firestore();
-    if (this.state.docId) {
+  const autoSave = e => {
+    if (docId) {
       db.collection("notes")
-        .doc(this.state.docId)
+        .doc(docId)
         .update({ content: e.target.value });
     } else {
       db.collection("notes").add({
-        author: this.state.user.email,
+        author: user.email,
         content: e.target.value
       });
     }
-  }
-
-  logout = () => {
-    const auth = firebase.auth();
-    auth.signOut();
   };
 
-  login = () => {
-    const auth = firebase.auth();
+  const login = () => {
     auth
-      .signInWithPopup(this.provider)
+      .signInWithPopup(provider)
       .then(result => {
-        this.handleClose();
+        setOpen(false);
       })
       .catch(error => {});
   };
 
-  handleMenu = () => {
-    this.setState({ open: true });
-  };
-
-  handleClose = () => {
-    this.setState({ open: false });
-  };
-
-  render() {
-    const { classes } = this.props;
-    const { anchorEl, user, open } = this.state;
-    const isSignedIn = Boolean(user);
-    console.log(isSignedIn, user);
-    const theme = createMuiTheme({
-      typography: {
-        fontFamily: "Fira Code"
-      }
-    });
-    return (
-      <MuiThemeProvider theme={theme}>
-        <div className={classes.root}>
-          <AppBar position="static">
-            <Toolbar>
-              <IconButton
-                className={classes.menuButton}
-                color="inherit"
-                aria-label="Menu"
-              >
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="h6" color="inherit" className={classes.grow}>
-                ToNote
-              </Typography>
-              <div>
-                {isSignedIn ? (
-                  <div
-                    style={{
-                      width: "110%",
-                      display: "flex",
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center"
-                    }}
-                  >
-                    <Typography
-                      color="inherit"
-                      style={{ display: "inline-block" }}
-                      variant="body2"
-                      className={classes.grow}
-                    >
-                      {user.displayName}
-                    </Typography>
-                    <Avatar
-                      style={{ display: "inline-block" }}
-                      onClick={this.handleMenu.bind(this)}
-                      alt="Remy Sharp"
-                      src={user.photoURL}
-                      className={classes.avatar}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <Typography
-                      color="inherit"
-                      style={{ display: "inline-block" }}
-                      variant="body2"
-                      className={classes.grow}
-                    >
-                      Login -->
-                    </Typography>
-                    <IconButton
-                      aria-owns={open ? "menu-appbar" : undefined}
-                      aria-haspopup="true"
-                      onClick={this.login.bind(this)}
-                      color="inherit"
-                    >
-                      <AccountCircle />
-                    </IconButton>
-                  </div>
-                )}
-              </div>
-              {
-              isSignedIn && (
-              <Menu
-                  id="menu-appbar"
-                  anchorEl={anchorEl}
-                  anchorOrigin={{
-                    vertical: "top",
-                    horizontal: "right"
-                  }}
-                  transformOrigin={{
-                    vertical: "top",
-                    horizontal: "right"
-                  }}
-                  open={this.state.open}
-                  onClose={this.handleClose}
-              >
-                <MenuItem onClick={this.logout.bind(this)}>
-                  SignOut
-                </MenuItem>
-              </Menu>
-              )}
-            </Toolbar>
-          </AppBar>
-          {isSignedIn ? (
-            <TextField
-              id="outlined-multiline-flexible"
-              multiline
-              rows={40}
-              value={this.state.note}
-              onChange={this.autoSave.bind(this)}
-              className={classes.textField}
-              margin="normal"
-              variant="outlined"
+  const { classes } = props;
+  const isSignedIn = Boolean(user);
+  const theme = createMuiTheme({
+    palette: {
+      type: isDark ? "dark" : "light"
+    },
+    typography: {
+      fontFamily: "Fira Code",
+      useNextVariants: true,
+      suppressDeprecationWarnings: true
+    }
+  });
+  return (
+    <MuiThemeProvider theme={theme}>
+      <div className={classes.root}>
+        <AppBar position="static" color="default">
+          <Toolbar>
+            <IconButton
+              className={classes.menuButton}
+              color="primary"
+              aria-label="Menu"
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="h6"
+              color="textPrimary"
+              gutterBottom
+              className={classes.grow}
+            >
+              ToNote
+            </Typography>
+            <Switch
+              checked={isDark}
+              onChange={() => setDark(!isDark)}
+              value="isDark"
             />
-          ) : null}
-        </div>
-      </MuiThemeProvider>
-    );
-  }
+            <div>
+              {isSignedIn ? (
+                <div
+                  onClick={e => {
+                    setOpen(true);
+                    setAnchorEl(e.currentTarget);
+                  }}
+                  style={{
+                    width: "110%",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <Typography
+                    color="textPrimary"
+                    style={{ display: "inline-block" }}
+                    variant="body2"
+                    className={classes.grow}
+                  >
+                    {user.displayName}
+                  </Typography>
+                  <Avatar
+                    style={{ display: "inline-block" }}
+                    alt="Remy Sharp"
+                    src={user.photoURL}
+                    className={classes.avatar}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Typography
+                    color="primary"
+                    style={{ display: "inline-block" }}
+                    variant="body2"
+                    className={classes.grow}
+                  >
+                    Login -->
+                  </Typography>
+                  <IconButton
+                    aria-owns={open ? "menu-appbar" : undefined}
+                    aria-haspopup="true"
+                    onClick={login}
+                    color="primary"
+                  >
+                    <AccountCircle />
+                  </IconButton>
+                </div>
+              )}
+            </div>
+            {isSignedIn && (
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: "bottom",
+                  horizontal: "left"
+                }}
+                transformOrigin={{
+                  vertical: "bottom",
+                  horizontal: "left"
+                }}
+                open={open}
+                onClose={() => setOpen(false)}
+              >
+                <MenuItem onClick={() => auth.signOut()}>SignOut</MenuItem>
+              </Menu>
+            )}
+          </Toolbar>
+        </AppBar>
+        {isSignedIn ? (
+          <TextField
+            id="outlined-multiline-flexible"
+            multiline
+            rows={40}
+            value={note}
+            onChange={autoSave}
+            className={classes.textField}
+            margin="normal"
+            variant="outlined"
+            style={{ backgroundColor: isDark ? "#1a2837" : "#FFF" }}
+          />
+        ) : null}
+      </div>
+    </MuiThemeProvider>
+  );
 }
 
 const styles = theme =>
@@ -242,9 +225,9 @@ const styles = theme =>
       marginRight: 20
     },
     textField: {
+      marginTop: 0,
       width: "100%",
-      height: "100%",
-      fontFamily: "Comic Sans MS !important"
+      height: "100%"
     }
   });
 
