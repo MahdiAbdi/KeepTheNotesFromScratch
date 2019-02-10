@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, {useEffect, useState, useRef, useLayoutEffect} from "react";
 import AppBar from "@material-ui/core/AppBar";
 import Toolbar from "@material-ui/core/Toolbar";
 import IconButton from "@material-ui/core/IconButton";
@@ -25,8 +25,8 @@ function App(props) {
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [isDark, setDark] = useLocalStorage(false);
-  const [caret, setCaret] = useState(0);
-  const input = useRef(null);
+  const inputRef = useRef(null);
+  const caretRef = useRef(null);
 
   useEffect(() => {
     auth.onAuthStateChanged(user => {
@@ -42,7 +42,10 @@ function App(props) {
               } else if (change.type === "removed") {
                 setNote("");
               }
-              setNote(change.doc.data().content);
+              setNote(newNote => {
+                  console.log(newNote === change.doc.data().content, newNote, change.doc.data().content,);
+                  return change.doc.data().content;
+              });
             });
           });
       } else {
@@ -53,19 +56,21 @@ function App(props) {
     });
   }, [user]);
 
-  useEffect(() => {
-    console.log(caret);
-    if (input.current !== null) {
-      console.log(note, caret);
-
+  useLayoutEffect(() => {
+    console.log('updating cursor position');
+    if (inputRef.current !== null && caretRef.current != null) {
       // input.current.setSelectionRange(caret.start, caret.end);
-      input.current.selectionStart = caret.start;
-      input.current.selectionEnd = caret.end;
+        inputRef.current.selectionStart = caretRef.current.start;
+        inputRef.current.selectionEnd = caretRef.current.end;
     }
-  }, [{ note, caret }]);
+    else{
+      console.log('eeeeeeeeeeeeeeeeeeeeeeeee');
+    }
+  }, [note]);
 
   const autoSave = e => {
-    setCaret({ start: e.target.selectionStart, end: e.target.selectionEnd, e });
+      setNote(e.target.value);
+    caretRef.current = {start: e.target.selectionStart, end: e.target.selectionEnd};
     if (docId) {
       db.collection("notes")
         .doc(docId)
@@ -197,10 +202,10 @@ function App(props) {
         </AppBar>
         {isSignedIn ? (
           <TextField
-            inputRef={input}
             id="outlined-multiline-flexible"
             multiline
             rows={40}
+            ref={inputRef}
             value={note}
             onChange={autoSave}
             className={classes.textField}
